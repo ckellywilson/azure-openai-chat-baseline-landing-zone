@@ -4,12 +4,20 @@
     "runArgs": ["--network=host"],
     "remoteUser": "vscode",
     "features": {
+        "ghcr.io/devcontainers/features/azure-cli:1": {},
+        "ghcr.io/devcontainers/features/node:1": {
+            "version": "20"
+        }
     },
     "customizations": {
         "vscode": {
             "extensions": [
                 "ms-dotnettools.csdevkit",
-                "ms-azuretools.vscode-bicep"
+                "ms-azuretools.vscode-bicep",
+                "GitHub.copilot-chat",
+                "GitHub.copilot",
+                "ms-vscode.azurecli",
+                "ms-vscode.vscode-json"
             ],
             "settings": {}
         }

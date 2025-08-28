@@ -3,31 +3,31 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "existingResourceIdForSpokeVirtualNetwork": {
-      "value": "/subscriptions/808c8f6e-4a1c-417e-9a77-db2619ce3d1a/resourceGroups/rg-demo01-networking/providers/Microsoft.Network/virtualNetworks/vnet-demo01-spoke"
+      "value": "/subscriptions/YOUR-SUBSCRIPTION-ID/resourceGroups/YOUR-NETWORKING-RG/providers/Microsoft.Network/virtualNetworks/YOUR-SPOKE-VNET-NAME"
     },
     "existingResourceIdForUdrForInternetTraffic": {
-      "value": "/subscriptions/808c8f6e-4a1c-417e-9a77-db2619ce3d1a/resourceGroups/rg-demo01-networking/providers/Microsoft.Network/routeTables/udr-demo01-to-hub"
+      "value": "/subscriptions/YOUR-SUBSCRIPTION-ID/resourceGroups/YOUR-NETWORKING-RG/providers/Microsoft.Network/routeTables/YOUR-UDR-NAME"
     },
     "bastionSubnetAddressPrefix": {
-      "value": "10.0.2.0/26"
+      "value": "10.240.0.0/26"
     },
     "appServicesSubnetAddressPrefix": {
-      "value": "192.168.1.0/24"
+      "value": "10.240.1.0/24"
     },
     "appGatewaySubnetAddressPrefix": {
-      "value": "192.168.2.0/24"
+      "value": "10.240.2.0/24"
     },
     "privateEndpointsSubnetAddressPrefix": {
-      "value": "192.168.3.0/28"
+      "value": "10.240.3.0/27"
     },
     "buildAgentsSubnetAddressPrefix": {
-      "value": "192.168.3.16/28"
+      "value": "10.240.3.32/27"
     },
     "agentsSubnetAddressPrefix": {
-      "value": "192.168.3.32/27"
+      "value": "10.240.4.0/24"
     },
     "jumpBoxSubnetAddressPrefix": {
-      "value": "192.168.3.64/28"
+      "value": "10.240.3.128/28"
     }
   }
 }

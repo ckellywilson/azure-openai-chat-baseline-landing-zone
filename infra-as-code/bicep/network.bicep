@@ -473,4 +473,4 @@ output agentSubnetName string = vnet::agentsSubnet.name
 output agentSubnetResourceId string = vnet::agentsSubnet.id
 
 @description('The DNS servers that were configured on the virtual network.')
-output vnetDNSServers array = vnet.properties.dhcpOptions.dnsServers
+output vnetDNSServers array = contains(vnet.properties, 'dhcpOptions') ? vnet.properties.dhcpOptions.dnsServers : []

@@ -2,14 +2,256 @@
 
 This reference implementation extends the foundation set in the [Azure AI Foundry Agent Service chat baseline](https://github.com/Azure-Samples/openai-end-to-end-baseline/) reference implementation. Specifically, this repository takes that reference implementation and deploys it within an application landing zone.
 
-If you haven't yet, you should start by reviewing the [Baseline Azure AI Foundry chat reference architecture in an Azure landing zone](https://learn.microsoft.com/azure/architecture/ai-ml/architecture/azure-openai-baseline-landing-zone) article on Microsoft Learn. It sets important context for this implementation that is not covered in this deployment guide.
+If you haven't yet, you should start by reviewing the [Baseline Azure AI Foundry chat reference architecture in an Azure landing zone](https://learn.microsoft.com/azure/architecture/ai-ml/architecture/azure-openai-baseline-zone) article on Microsoft Learn. It sets important context for this implementation that is not covered in this deployment guide.
 
-## Azure landing zone: application landing zone deployment
+## 📋 **Deployment Overview**
 
-This application landing zone deployment guide assuming you are using a typical Azure landing zone approach with platform and workload separation. This deployment assumes many pre-existing platform resources and deploys nothing outside of the scope of the application landing zone. That means to fully deploy this repo, it must be done so as part of your organization's actual subscription vending process. If you do not have the ability to deploy into an actual application landing zone, then consider this simply reference material.
+This repository provides **three deployment approaches** to suit different scenarios:
+
+1. **Single-Subscription Demo** - Everything deployed in one subscription for learning
+2. **Multi-Subscription Demo** - Realistic hub-spoke simulation across subscriptions  
+3. **True Application Landing Zone** - Production deployment using existing platform resources
+
+All approaches use the same primary deployment script (`deploy-complete-enhanced.sh`) with interactive mode to guide you through the process.
+
+## 🚀 **Quick Start - Choose Your Deployment Approach**
+
+**Select the deployment approach that matches your scenario:**
+
+### **Step 1: Pick Your Deployment Scenario**
+
+| Scenario | When to Use | Script Command |
+|----------|-------------|----------------|
+| **1. Single-Subscription Demo** | Learning, quick demos, development | `./deploy-complete-enhanced.sh` |
+| **2. Multi-Subscription Demo** | Realistic testing, POCs, learning ALZ patterns | `./deploy-complete-enhanced.sh` |
+| **3. True Application Landing Zone** | Production with existing platform infrastructure | `./setup-parameters.sh` then `./deploy-complete-enhanced.sh` |
+
+### **Step 2: Decision Tree**
+
+```
+Do you have existing platform resources (spoke VNet, UDR)?
+├─ YES → Use "True Application Landing Zone" (Scenario 3)
+└─ NO → Do you need to simulate multi-subscription ALZ?
+    ├─ YES → Use "Multi-Subscription Demo" (Scenario 2)  
+    └─ NO → Use "Single-Subscription Demo" (Scenario 1)
+```
+
+### **Step 3: Run Your Selected Approach**
+
+> **🎯 Ready to deploy? Most users should start here:**
+> ```bash
+> ./deploy-complete-enhanced.sh
+> ```
+> The script will interactively guide you through selecting the right scenario and configuring your deployment.
+
+**For automated/non-interactive deployment:**
+```bash
+export BASE_NAME="myapp01"
+export LOCATION="eastus2"  
+export DOMAIN_NAME_APPSERV="mycompany.com"
+./deploy-complete-enhanced.sh
+```
+
+**For True ALZ deployments, run setup first:**
+```bash
+./setup-parameters.sh  # Configure existing platform resources
+./deploy-complete-enhanced.sh  # Deploy application
+```
+
+## 🎯 **Detailed Deployment Scenarios**
+
+### **1. 🧪 Single-Subscription Demo**
+- **Best for:** Learning, quick demos, development
+- **What it creates:** Everything in your current subscription
+- **Includes:** Simulated hub-spoke in one subscription
+- **Limitations:** NOT suitable for production use
+
+### **2. 🏢 Multi-Subscription Demo**
+- **Best for:** Realistic testing, POCs, learning ALZ patterns
+- **What it creates:** Hub resources in "Platform" subscription, App resources in "Application" subscription
+- **Includes:** Cross-subscription peering, centralized DNS zones, realistic hub-spoke
+- **More realistic:** Mirrors actual enterprise ALZ patterns
+
+### **3. 🎯 True Application Landing Zone**
+- **Best for:** Production deployments
+- **Requirements:** Existing platform-provided spoke VNet and UDR
+- **Uses:** Real platform resources managed by your platform team
+- **Prerequisites:** Run `./setup-parameters.sh` first
+
+## 📝 **Configuration Reference**
+
+**Environment Variables (all optional with interactive prompts):**
+- `BASE_NAME`: 6-8 characters, lowercase letters and numbers only
+- `LOCATION`: Azure region (e.g., "eastus2", "westus2")
+- `DOMAIN_NAME_APPSERV`: Custom domain for Application Gateway (defaults to "contoso.com")
+
+**Multi-Subscription Additional Variables:**
+- `PLATFORM_SUBSCRIPTION_ID`: Connectivity/Platform subscription ID
+- `APPLICATION_SUBSCRIPTION_ID`: Application workload subscription ID
+
+## 🚀 **Ready to Deploy?**
+
+1. **Choose your deployment scenario** using the decision tree above
+2. **For True ALZ**: Run `./setup-parameters.sh` first to configure platform resources  
+3. **Run the deployment**: `./deploy-complete-enhanced.sh`
+4. **Monitor progress**: Use `./check-status.sh` during deployment
+5. **Deploy agents and test**: Follow the post-deployment instructions
+
+> **💡 First time?** Start with the **Single-Subscription Demo** to learn the system before moving to production scenarios.
+
+## 🔄 **What Happens During Deployment**
+
+The deployment process includes these automated steps:
+
+- ✅ **Prerequisites Check**: Validates Azure CLI, OpenSSL installation
+- ✅ **Resource Providers**: Automatically registers required providers  
+- ✅ **Certificate Generation**: Creates self-signed certificates for demo purposes
+- ✅ **Infrastructure Deployment**: Deploys main Bicep template with all dependencies (~20 minutes)
+- ✅ **AI Foundry Setup**: Deploys AI Foundry project and agent capability (~5 minutes)
+- ✅ **Environment Export**: Saves all deployment variables to `deployment-vars.env` for later use
+
+### 🛠️ **Key Helper Scripts**
+
+#### setup-parameters.sh (Required for True ALZ)
+Interactive configuration script for ALZ deployments:
+- Validates Azure access and platform resource availability
+- Configures spoke VNet and UDR resource IDs
+- Sets up subnet address prefixes within your VNet's address space
+- Creates backups of existing configuration
+
+```bash
+./setup-parameters.sh              # Interactive configuration
+./setup-parameters.sh --validate   # Validate existing configuration
+./setup-parameters.sh --help       # Show help
+```
+
+### Monitoring Deployment Progress
+
+During and after deployment, you can monitor the status using the included status checker:
+
+```bash
+# Check deployment status and validate resources
+./check-status.sh
+```
+
+The status checker provides:
+- ✅ Azure authentication verification
+- ✅ Deployment progress monitoring
+- ✅ Resource validation and counting
+- ✅ Network configuration checks
+- ✅ Context-aware next steps guidance
+
+This is particularly useful for:
+- **During deployment**: Monitor progress of long-running deployments
+- **After deployment**: Verify all resources were created successfully
+- **Troubleshooting**: Get specific error details and remediation steps
+- **Before next steps**: Confirm readiness before agent deployment or testing
+
+### Deploy Jump Box (Optional)
+
+If you need a jump box for agent deployment and testing:
+
+```bash
+# Source the saved deployment variables (if using automated scripts)
+source deployment-vars.env
+
+# Deploy jump box
+az deployment group create \
+  -f ./infra-as-code/bicep/jumpbox/jumpbox.bicep \
+  -g $RESOURCE_GROUP \
+  -p "@./infra-as-code/bicep/jumpbox/parameters.json" \
+  -p baseName=$BASE_NAME
+```
+
+## ✅ Prerequisites Checklist
+
+### Platform Team Requirements (for True ALZ)
+
+- [ ] Application landing zone subscription provisioned
+- [ ] Spoke virtual network deployed (`/22` or larger)
+- [ ] DNS configuration set for hub-based resolution
+- [ ] VNet peering established (hub ↔ spoke)
+- [ ] UDR deployed for internet traffic (if not using VWAN)
+- [ ] Private endpoint DNS resolution configured
+- [ ] Required Azure resource providers registered
+
+### Required Azure Quota
+
+- [ ] Application Gateways: 1 WAF_v2 tier instance
+- [ ] App Service Plans: P1v3 (AZ), 3 instances
+- [ ] Azure AI Search: 1 Standard tier
+- [ ] Azure Cosmos DB: 1 account
+- [ ] Azure OpenAI: GPT-4o model with 50K TPM capacity
+- [ ] Public IPv4 Addresses: 4 Standard tier
+- [ ] Storage Accounts: 2
+
+### User Permissions
+
+- [ ] `User Access Administrator` or `Owner` on subscription
+- [ ] `Cognitive Services Contributor` for AI services
+- [ ] Access to platform-provided spoke VNet and UDR resources (for True ALZ)
+
+### Local Development Environment
+
+- [ ] [Azure CLI installed](https://learn.microsoft.com/cli/azure/install-azure-cli)
+- [ ] [OpenSSL CLI installed](https://docs.openssl.org/3.3/man7/ossl-guide-introduction/#getting-and-installing-openssl)
+
+*If you're using WSL, ensure the Azure CLI is installed in WSL and not using the Windows version. `which az` should show `/usr/bin/az`.*
+
+## 🔍 Troubleshooting
+
+### Common Issues
+
+1. **Platform Resources Not Found** (True ALZ scenarios)
+   ```bash
+   # Validate your configuration
+   ./setup-parameters.sh --validate
+   ```
+
+2. **Deployment Progress Monitoring**
+   ```bash
+   # Check deployment status and progress
+   ./check-status.sh
+   ```
+
+3. **DNS Resolution Issues**
+   - Ensure platform team has configured DNS forwarding
+   - Wait for private endpoint DNS propagation (~5-10 minutes)
+   - Check DINE policy deployment for private DNS zones
+
+4. **Quota Issues**
+   - Request quota increases for required resources
+   - Check region availability for all services
+
+5. **Permission Issues**
+   - Verify subscription-level permissions
+   - Ensure access to platform networking resources
+
+### Validation Commands
+
+```bash
+# Check current subscription and permissions
+az account show
+az role assignment list --assignee $(az ad signed-in-user show --query id -o tsv) --scope /subscriptions/$(az account show --query id -o tsv)
+
+# Validate platform resources (True ALZ only)
+az network vnet show --ids "/subscriptions/.../virtualNetworks/vnet-spoke"
+az network route-table show --ids "/subscriptions/.../routeTables/udr-to-hub"
+
+# Check resource providers
+az provider list --query "[?registrationState=='Registered'].namespace" -o table
+```
+
+## Manual Deployment Guide
+
+*For advanced customization, learning purposes, or when you need step-by-step control over the deployment process.*
+
+### Application Landing Zone Context
+
+This application landing zone deployment guide assumes you are using a typical Azure landing zone approach with platform and workload separation. This deployment assumes many pre-existing platform resources and deploys nothing outside of the scope of the application landing zone. That means to fully deploy this repo, it must be done so as part of your organization's actual subscription vending process. If you do not have the ability to deploy into an actual application landing zone, then consider using the demo deployment option above.
 
 > [!IMPORTANT]
-> Because organizations may implement landing zones different, it is *expected* that you will need to further adjust the deployment beyond the configuration provided.
+> Because organizations may implement landing zones differently, it is *expected* that you will need to further adjust the deployment beyond the configuration provided.
 
 ### Differences from the Azure OpenAI end-to-end chat baseline reference implementation
 
@@ -21,7 +263,6 @@ The key differences when integrating the Azure AI Foundry Agent Service chat bas
 
   | :warning: | Azure AI Foundry will require Azure Private DNS resolver to inject specific rules to resolve its dependencies. |
   | :-------: | :------------------------- |
-
 
 - **Bastion host**: Instead of deploying an Azure Bastion host within the application's landing zone, a centralized bastion service already provisioned within the platform landing zone subscriptions is used. This means all remote administrative traffic is routed through a common, secure access point, adhering to the principle of least privilege and centralized auditing.
 
@@ -72,7 +313,10 @@ A chat UI application is deployed into a private Azure App Service. The UI is ac
 
 ## Deployment guide
 
-Follow these instructions to deploy this example to your application landing zone subscription, try out what you've deployed, and learn how to clean up those resources.
+> [!NOTE]
+> Most users should use the [Quick Start Deployment Options](#-quick-start---choose-your-deployment-approach) above instead of this manual process. This section is provided for advanced customization scenarios.
+
+Follow these instructions to deploy this example to your application landing zone subscription manually, try out what you've deployed, and learn how to clean up those resources.
 
 > [!WARNING]
 > The deployment steps assume you have an application landing zone already provisioned through your subscription vending process. This deployment will not work unless you have permission to manage subnets on an existing virtual network and means to ensure private endpoint DNS configuration (such as platform provided DINE Azure Policy). It also requires your platform team to have required NVA allowances on the hub's egress firewall and configured Azure DNS Forwarding rulesets targeting the Azure DNS Private Resolver input IP address for the following Azure AI Foundry capability host domain dependencies.
@@ -81,7 +325,7 @@ Follow these instructions to deploy this example to your application landing zon
 
 *Download a [Visio file](docs/media/baseline-landing-zone-networking.vsdx) of this architecture.*
 
-### Prerequisites
+### Manual deployment prerequisites
 
 - You have an application landing zone subscription ready for this deployment that contains the following platform-provided resources:
 
@@ -440,31 +684,47 @@ This section will help you to validate that the workload is exposed correctly an
 
 ## :broom: Clean up resources
 
-Most Azure resources deployed in the prior steps will incur ongoing charges unless removed. This deployment is typically over $88 a day, and more if you enabled Azure DDoS Protection. Promptly delete resources when you are done using them.
+Most Azure resources deployed in the prior steps will incur ongoing charges unless removed. This deployment typically costs over $88 per day, and more if you enabled Azure DDoS Protection. Promptly delete resources when you are done using them.
 
-Additionally, a few of the resources deployed enter soft delete status which will restrict the ability to redeploy another resource with the same name or DNS entry; and might not release quota. It's best to purge any soft deleted resources once you are done exploring. Use the following commands to delete the deployed resources and resource group and to purge each of the resources with soft delete.
+Additionally, a few of the resources deployed enter soft delete status which will restrict the ability to redeploy another resource with the same name or DNS entry; and might not release quota. It's best to purge any soft deleted resources once you are done exploring.
 
-1. Delete the resource group as a way to delete all contained Azure resources.
+### Automated Cleanup (Recommended)
 
-   | :warning: | This will completely delete any data you may have included in this example. That data and this deployment will be unrecoverable. |
-   | :-------: | :------------------------- |
+If you used the automated deployment scripts, you can use the saved variables:
 
-   :clock8: *This might take about 20 minutes.*
+```bash
+# Source the saved deployment variables
+source deployment-vars.env
 
-   ```bash
-   # This command will delete most of the resources, but will sometimes error out. That's expected.
-   az group delete -n $RESOURCE_GROUP -y
+# Delete the resource group (removes all resources)
+az group delete --name $RESOURCE_GROUP --yes --no-wait
 
-   # Continue, even if the previous command errored.
-   ```
+# Purge soft-deleted resources
+az keyvault purge -n "kv-${BASE_NAME}" -l $LOCATION
+az cognitiveservices account purge -g $RESOURCE_GROUP -l $LOCATION -n $AIFOUNDRY_NAME
+```
 
-1. Purge soft-deleted resources.
+### Manual Cleanup
 
-   ```bash
-   # Purge the soft delete resources.
-   az keyvault purge -n kv-${BASE_NAME} -l $LOCATION
-   az cognitiveservices account purge -g $RESOURCE_GROUP -l $LOCATION -n $AIFOUNDRY_NAME
-   ```
+If you deployed manually, use the following commands:
+
+```bash
+# Set your variables (replace with your actual values)
+RESOURCE_GROUP="rg-chat-alz-baseline-<your-base-name>"
+BASE_NAME="<your-base-name>"
+LOCATION="<your-location>"
+AIFOUNDRY_NAME="aif<your-base-name>"
+
+# Delete the resource group
+az group delete -n $RESOURCE_GROUP -y
+
+# Purge soft-deleted resources
+az keyvault purge -n "kv-${BASE_NAME}" -l $LOCATION
+az cognitiveservices account purge -g $RESOURCE_GROUP -l $LOCATION -n $AIFOUNDRY_NAME
+```
+
+| :warning: | This will completely delete any data you may have included in this example. That data and this deployment will be unrecoverable. |
+| :-------: | :------------------------- |
 
 1. [Remove the Azure Policy assignments](https://portal.azure.com/#blade/Microsoft_Azure_Policy/PolicyMenuBlade/Compliance) scoped to the resource group. To identify those created by this implementation, look for ones that are prefixed with `[BASE_NAME] `.
 

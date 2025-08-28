@@ -130,7 +130,6 @@ module deployAzureAIFoundry 'ai-foundry.bicep' = {
   params: {
     baseName: baseName
     logAnalyticsWorkspaceName: deployAIAgentServiceDependencies.outputs.logAnalyticsWorkspaceName
-    agentSubnetResourceId: networkModule.outputs.agentSubnetResourceId
     privateEndpointSubnetResourceId: networkModule.outputs.privateEndpointSubnetResourceId
     aiFoundryPortalUserPrincipalId: yourPrincipalId
   }

@@ -482,6 +482,40 @@ deploy_main_infrastructure() {
         exit 1
     fi
     
+    # Register required resource providers
+    print_status "Registering required Azure resource providers..."
+    required_providers=(
+        "Microsoft.AlertsManagement"
+        "Microsoft.Insights"
+        "Microsoft.Web"  
+        "Microsoft.CognitiveServices"
+        "Microsoft.Storage"
+        "Microsoft.Network"
+        "Microsoft.KeyVault"
+        "Microsoft.DocumentDB"
+        "Microsoft.Search"
+        "Microsoft.ManagedIdentity"
+        "Microsoft.OperationalInsights"
+        "Microsoft.Authorization"
+        "Microsoft.Compute"
+    )
+    
+    for provider in "${required_providers[@]}"; do
+        status=$(az provider show --namespace "$provider" --query "registrationState" -o tsv 2>/dev/null || echo "NotFound")
+        case $status in
+            "Registered")
+                print_success "✓ $provider is already registered"
+                ;;
+            "Registering")
+                print_warning "⏳ $provider is currently registering..."
+                ;;
+            "NotRegistered"|"NotFound")
+                print_status "🔄 Registering $provider..."
+                az provider register --namespace "$provider" || print_warning "Failed to register $provider"
+                ;;
+        esac
+    done
+    
     # Set resource group name
     export RESOURCE_GROUP="rg-${BASE_NAME}-workload"
     

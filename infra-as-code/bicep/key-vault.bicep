@@ -138,7 +138,7 @@ resource keyVaultPrivateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' =
 // Private endpoints
 
 resource keyVaultPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = {
-  name: 'pe-key-vault'
+  name: 'pe-key-vault-${baseName}'
   location: location
   properties: {
     subnet: {

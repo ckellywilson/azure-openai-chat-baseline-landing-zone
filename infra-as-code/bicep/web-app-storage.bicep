@@ -160,13 +160,13 @@ resource blobStorageContributorForUserRoleAssignment 'Microsoft.Authorization/ro
 }
 
 resource webAppStoragePrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = {
-  name: 'pe-web-app-storage'
+  name: 'pe-web-app-storage-${baseName}'
   location: location
   properties: {
     subnet: {
       id: virtualNetwork::privateEndpointsSubnet.id
     }
-    customNetworkInterfaceName: 'nic-web-app-storage'
+    customNetworkInterfaceName: 'nic-web-app-storage-${baseName}'
     privateLinkServiceConnections: [
       {
         name: 'pe-web-app-storage'

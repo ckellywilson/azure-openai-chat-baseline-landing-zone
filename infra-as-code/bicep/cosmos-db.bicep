@@ -150,13 +150,13 @@ resource azureDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-prev
 // Private endpoints
 
 resource cosmosDbPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = {
-  name: 'pe-ai-agent-threads'
+  name: 'pe-ai-agent-threads-${baseName}'
   location: resourceGroup().location
   properties: {
     subnet: {
       id: privateEndpointSubnetResourceId
     }
-    customNetworkInterfaceName: 'nic-ai-agent-threads'
+    customNetworkInterfaceName: 'nic-ai-agent-threads-${baseName}'
     privateLinkServiceConnections: [
       {
         name: 'ai-agent-cosmosdb'

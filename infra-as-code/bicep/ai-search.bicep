@@ -98,13 +98,13 @@ resource azureDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-prev
 // Private endpoints
 
 resource aiSearchPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = {
-  name: 'pe-ai-agent-search'
+  name: 'pe-ai-agent-search-${baseName}'
   location: location
   properties: {
     subnet: {
       id: privateEndpointSubnetResourceId
     }
-    customNetworkInterfaceName: 'nic-ai-agent-search'
+    customNetworkInterfaceName: 'nic-ai-agent-search-${baseName}'
     privateLinkServiceConnections: [
       {
         name: 'ai-agent-search'

@@ -13,10 +13,6 @@ param baseName string
 @minLength(4)
 param logAnalyticsWorkspaceName string
 
-@description('The resource ID for the subnet that the Azure AI Agents will egress through.')
-@minLength(1)
-param agentSubnetResourceId string
-
 @description('The resource ID for the subnet that private endpoints in the workload should surface in.')
 @minLength(1)
 param privateEndpointSubnetResourceId string
@@ -26,7 +22,8 @@ param privateEndpointSubnetResourceId string
 @minLength(36)
 param aiFoundryPortalUserPrincipalId string
 
-var aiFoundryName = 'aif${baseName}'
+// Enhanced unique naming to prevent conflicts
+var aiFoundryName = 'aif${baseName}${uniqueString(resourceGroup().id, baseName, subscription().subscriptionId)}'
 
 // ---- Existing resources ----
 
@@ -66,14 +63,15 @@ resource aiFoundry 'Microsoft.CognitiveServices/accounts@2025-06-01' = {
       virtualNetworkRules: []
     }
     publicNetworkAccess: 'Disabled'
-    #disable-next-line BCP036
-    networkInjections: [
-      {
-        scenario: 'agent'
-        subnetArmId: agentSubnetResourceId  // Report this, schema issue and IP address range issue
-        useMicrosoftManagedNetwork: false
-      }
-    ]
+    // Temporarily disable network injection to avoid internal service errors
+    // #disable-next-line BCP036
+    // networkInjections: [
+    //   {
+    //     scenario: 'agent'
+    //     subnetArmId: agentSubnetResourceId  // Report this, schema issue and IP address range issue
+    //     useMicrosoftManagedNetwork: false
+    //   }
+    // ]
   }
 
   @description('Models are managed at the account level. Deploy the GPT model that will be used for the Azure AI Agent logic.')
@@ -112,18 +110,18 @@ resource cognitiveServicesUser 'Microsoft.Authorization/roleAssignments@2022-04-
 
 @description('Connect the Azure AI Foundry account\'s endpoints to your existing private DNS zones.')
 resource aiFoundryPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = {
-  name: 'pe-ai-foundry'
+  name: 'pe-${aiFoundryName}' // Use dynamic naming to avoid conflicts
   location: location
   properties: {
     subnet: {
       id: privateEndpointSubnetResourceId
     }
-    customNetworkInterfaceName: 'nic-ai-foundry'
+    customNetworkInterfaceName: 'nic-${aiFoundryName}' // Use dynamic naming
     privateLinkServiceConnections: [
       {
         name: 'aifoundry'
         properties: {
-          privateLinkServiceId: aiFoundry.id
+          privateLinkServiceId: aiFoundry.id // This creates the dependency
           groupIds: [
             'account'
           ]

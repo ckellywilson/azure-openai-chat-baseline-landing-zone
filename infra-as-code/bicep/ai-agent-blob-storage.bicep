@@ -97,13 +97,13 @@ resource debugUserBlobDataOwnerAssignment 'Microsoft.Authorization/roleAssignmen
 // Private endpoints
 
 resource storagePrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = {
-  name: 'pe-ai-agent-storage'
+  name: 'pe-ai-agent-storage-${baseName}'
   location: location
   properties: {
     subnet: {
       id: privateEndpointSubnetResourceId
     }
-    customNetworkInterfaceName: 'nic-ai-agent-storage'
+    customNetworkInterfaceName: 'nic-ai-agent-storage-${baseName}'
     privateLinkServiceConnections: [
       {
         name: 'ai-agent-storage'

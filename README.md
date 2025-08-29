@@ -147,6 +147,244 @@ This is particularly useful for:
 - **Troubleshooting**: Get specific error details and remediation steps
 - **Before next steps**: Confirm readiness before agent deployment or testing
 
+## 🤖 **Post-Deployment: Setting Up AI Agents**
+
+Once your infrastructure deployment is complete, you need to create and configure AI agents in Azure AI Foundry. The deployment has already set up the foundation, but you need to create the actual agent that your web application will use.
+
+### **What's Already Deployed**
+
+The infrastructure deployment has already created:
+- ✅ **Azure AI Foundry Hub**: The main AI service with private endpoints
+- ✅ **OpenAI Model**: GPT-4o model deployment named `agent-model` (50K TPM capacity)
+- ✅ **Bing Search**: Connected for web grounding capabilities
+- ✅ **AI Search Service**: For vector search and RAG capabilities
+- ✅ **Storage & Cosmos DB**: For agent state and conversation management
+- ✅ **Networking**: All private endpoints and subnets configured
+
+### **What You Need to Do**
+
+You need to create an **AI Agent** that uses these deployed resources to provide chat functionality.
+
+### **Step-by-Step AI Agent Setup**
+
+#### **Option A: Using Jump Box (Recommended)**
+
+If you need network access to the private AI Foundry endpoints, deploy a jump box first:
+
+```bash
+# Deploy jump box for network access
+az deployment group create \
+  -f ./infra-as-code/bicep/jumpbox/jumpbox.bicep \
+  -g rg-demo01-workload \
+  -p @./infra-as-code/bicep/jumpbox/parameters.json \
+  -p baseName=demo01
+```
+
+**1. Connect to Jump Box and Set Environment Variables**
+
+```powershell
+# Set these variables based on your deployment
+$BASE_NAME = "demo01"
+$RESOURCE_GROUP = "rg-${BASE_NAME}-workload"
+
+# Get deployed resource names
+$AI_FOUNDRY_NAME = $(az resource list -g $RESOURCE_GROUP --resource-type "Microsoft.CognitiveServices/accounts" --query "[0].name" -o tsv)
+$BING_ACCOUNT_NAME = $(az resource list -g $RESOURCE_GROUP --resource-type "Microsoft.Bing/accounts" --query "[0].name" -o tsv)
+
+# Set up agent configuration variables
+$AI_FOUNDRY_PROJECT_NAME = "projchat"
+$MODEL_CONNECTION_NAME = "agent-model"
+$BING_CONNECTION_NAME = $BING_ACCOUNT_NAME
+$BING_CONNECTION_ID = "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.CognitiveServices/accounts/${AI_FOUNDRY_NAME}/projects/${AI_FOUNDRY_PROJECT_NAME}/connections/${BING_CONNECTION_NAME}"
+$AI_FOUNDRY_AGENT_CREATE_URL = "https://${AI_FOUNDRY_NAME}.services.ai.azure.com/api/projects/${AI_FOUNDRY_PROJECT_NAME}/assistants?api-version=2025-05-15-preview"
+
+# Verify the configuration
+Write-Host "AI Foundry Hub: $AI_FOUNDRY_NAME"
+Write-Host "Model Connection: $MODEL_CONNECTION_NAME"
+Write-Host "Bing Connection ID: $BING_CONNECTION_ID"
+Write-Host "Agent API URL: $AI_FOUNDRY_AGENT_CREATE_URL"
+```
+
+**2. Download and Configure the Agent Definition**
+
+```powershell
+# Download the pre-configured agent template
+Invoke-WebRequest -Uri "https://github.com/Azure-Samples/azure-openai-chat-baseline-landing-zone/raw/refs/heads/main/agents/chat-with-bing.json" -OutFile "chat-with-bing.json"
+
+# Read and update the template with your specific resource names
+$agentJson = Get-Content "chat-with-bing.json" -Raw
+$agentJson = $agentJson -replace 'MODEL_CONNECTION_NAME', $MODEL_CONNECTION_NAME
+$agentJson = $agentJson -replace 'BING_CONNECTION_ID', $BING_CONNECTION_ID
+$agentJson | Out-File "chat-with-bing-configured.json" -Encoding utf8
+
+# Verify the configuration looks correct
+Get-Content "chat-with-bing-configured.json"
+```
+
+**3. Create the AI Agent**
+
+```powershell
+# Deploy the agent to AI Foundry
+az rest -u $AI_FOUNDRY_AGENT_CREATE_URL -m "post" --resource "https://ai.azure.com" -b @chat-with-bing-configured.json
+
+# Verify the agent was created and get its ID
+$AGENT_ID = $(az rest -u $AI_FOUNDRY_AGENT_CREATE_URL -m 'get' --resource 'https://ai.azure.com' --query 'data[0].id' -o tsv)
+Write-Host "Created Agent ID: $AGENT_ID"
+
+# Save the Agent ID for later use
+$AGENT_ID | Out-File "agent-id.txt" -Encoding utf8
+```
+
+#### **Option B: Using AI Foundry Portal (Alternative)**
+
+If you prefer using the web interface:
+
+**1. Access AI Foundry Portal**
+- From your jump box or network-connected machine, go to: `https://ai.azure.com`
+- Sign in and navigate to your AI Foundry project named **projchat**
+
+**2. Create a New Agent**
+- Click **"Agents"** in the left navigation
+- Click **"+ New agent"**
+- Choose **"Create agent"**
+
+**3. Configure the Agent**
+- **Name**: `Baseline Chatbot Agent`
+- **Description**: `Example agent that uses Bing Search for grounded responses`
+- **Model**: Select `agent-model` (GPT-4o deployment)
+- **Instructions**: 
+  ```
+  You are a helpful Chatbot agent. You'll consult the Bing Search tool to answer questions. Always search the web for information before responding.
+  ```
+
+**4. Add Bing Search Tool**
+- Click **"Add tool"** → **"Bing Search"**
+- Select your Bing connection
+- Set **Count**: `5`
+- Set **Freshness**: `Week`
+
+**5. Save and Deploy the Agent**
+- Click **"Save"** to create the agent
+- Note the **Agent ID** from the URL or agent details
+
+#### **Step 4: Configure the Web Application**
+
+Back from your jump box, configure the web app to use your new agent:
+
+```powershell
+# Get the AI Foundry project endpoint
+$AI_FOUNDRY_ENDPOINT = "https://${AI_FOUNDRY_NAME}.services.ai.azure.com"
+$AI_PROJECT_ENDPOINT = "${AI_FOUNDRY_ENDPOINT}/api/projects/${AI_FOUNDRY_PROJECT_NAME}"
+
+# Update the web app configuration
+az webapp config appsettings set -n "app-${BASE_NAME}" -g $RESOURCE_GROUP --settings AIProjectEndpoint="${AI_PROJECT_ENDPOINT}"
+az webapp config appsettings set -n "app-${BASE_NAME}" -g $RESOURCE_GROUP --settings AIAgentId="${AGENT_ID}"
+
+# Restart the web app to apply new settings
+az webapp restart --name "app-${BASE_NAME}" --resource-group $RESOURCE_GROUP
+```
+
+#### **Step 5: Deploy the Web Application Code**
+
+```powershell
+# Download the pre-built web application
+Invoke-WebRequest -Uri "https://github.com/Azure-Samples/azure-openai-chat-baseline-landing-zone/raw/refs/heads/main/website/chatui.zip" -OutFile "chatui.zip"
+
+# Upload to the web app's storage account
+$WEBAPP_STORAGE = $(az storage account list -g $RESOURCE_GROUP --query "[?contains(name, 'stwebapp')].name" -o tsv)
+az storage blob upload -f chatui.zip --account-name $WEBAPP_STORAGE --auth-mode login -c deploy -n chatui.zip
+
+# Restart the web app to load the new code
+az webapp restart --name "app-${BASE_NAME}" --resource-group $RESOURCE_GROUP
+```
+
+### **Testing Your Setup**
+
+#### **Test the Agent in AI Foundry Portal (Optional)**
+1. From your jump box, go to `https://ai.azure.com`
+2. Navigate to your **projchat** project
+3. Click **"Agents"** → Select your **"Baseline Chatbot Agent"**
+4. Click **"Try in playground"**
+5. Ask a question that requires recent information (e.g., "What's the weather like in Seattle today?")
+6. Verify you get a grounded response with current information
+
+#### **Test the Complete Web Application**
+1. **From your local machine**, get the Application Gateway public IP:
+   ```bash
+   source deployment-vars.env  # Load saved variables
+   APPGW_PUBLIC_IP=$(az network public-ip show -g $RESOURCE_GROUP -n "pip-$BASE_NAME" --query ipAddress --output tsv)
+   echo "Application Gateway IP: $APPGW_PUBLIC_IP"
+   ```
+
+2. **Add DNS entry**: Edit your hosts file (`/etc/hosts` or `C:\Windows\System32\drivers\etc\hosts`) and add:
+   ```
+   <APPGW_PUBLIC_IP> www.contoso.com
+   ```
+
+3. **Browse to your application**: Go to `https://www.contoso.com`
+   - Accept the self-signed certificate warning
+   - Ask questions that require web search (e.g., recent news, weather, current events)
+   - Verify the agent provides accurate, current responses
+
+### **Troubleshooting Agent Setup**
+
+**Agent Creation Fails:**
+- Verify you're connected to the network (from jump box)
+- Check that all resource names are correct
+- Ensure the Bing connection exists: `az cognitiveservices account show -n <bing-account-name> -g <resource-group>`
+
+**Web App Can't Connect to Agent:**
+- Verify the `AIProjectEndpoint` and `AIAgentId` settings are correct
+- Check that private endpoints are working: `nslookup <ai-foundry-name>.services.ai.azure.com`
+- Restart the web app after configuration changes
+
+**No Current Information in Responses:**
+- Verify the Bing Search tool is properly configured
+- Check that the agent instructions include "search the web"
+- Test the Bing connection independently in AI Foundry
+
+## 📚 **Additional Resources**
+
+The following Microsoft Learn documentation provides detailed guidance for the components and processes covered in this implementation:
+
+### **Azure AI Foundry & Agent Service**
+- [**Quickstart: Get started with Azure AI Foundry**](https://learn.microsoft.com/en-us/azure/ai-foundry/quickstarts/get-started-code?tabs=azure-ai-foundry&pivots=fdp-project) - Complete getting started guide for AI Foundry
+- [**Set up your agent environment**](https://learn.microsoft.com/en-us/azure/ai-foundry/agents/environment-setup#set-up-your-agent-environment) - Prerequisites and environment setup
+- [**Quickstart: Create a new agent**](https://learn.microsoft.com/en-us/azure/ai-foundry/agents/quickstart#create-a-foundry-account-and-project-in-azure-ai-foundry-portal) - Step-by-step agent creation
+- [**Work with Azure AI Foundry Agent Service in Visual Studio Code**](https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/develop/vs-code-agents#create-and-edit-azure-ai-agents-within-the-designer-view) - VS Code extension for agent development
+
+### **Agent Tools Configuration**
+- [**Grounding with Bing Search**](https://learn.microsoft.com/en-us/azure/ai-foundry/agents/how-to/tools/bing-grounding#setup) - Configure Bing Search tool for web grounding
+- [**How to use Grounding with Bing Search (portal)**](https://learn.microsoft.com/en-us/azure/ai-foundry/agents/how-to/tools/bing-code-samples) - Portal-based Bing Search configuration
+- [**Grounding with Bing Custom Search**](https://learn.microsoft.com/en-us/azure/ai-foundry/agents/how-to/tools/bing-custom-search#setup) - Advanced Bing Search with custom domains
+- [**Available tools for Azure AI Agents**](https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/develop/vs-code-agents#add-tools-to-the-azure-ai-agent) - Complete list of agent tools
+
+### **Web Application & App Service**
+- [**Tutorial: Build an agentic web app in Azure App Service**](https://learn.microsoft.com/en-us/azure/app-service/tutorial-ai-agent-web-app-semantic-kernel-foundry-dotnet#create-and-configure-the-azure-ai-foundry-resource) - Complete tutorial for AI-powered web apps
+- [**Configure an App Service app**](https://learn.microsoft.com/en-us/azure/app-service/configure-common#configure-general-settings) - App Service configuration and settings
+- [**Environment variables and app settings in Azure App Service**](https://learn.microsoft.com/en-us/azure/app-service/reference-app-settings#deployment) - App configuration management
+- [**Deploy to Azure App Service by using Azure Pipelines**](https://learn.microsoft.com/en-us/azure/app-service/deploy-azure-pipelines#2-add-the-deployment-task) - CI/CD deployment guidance
+
+### **Landing Zone Architecture**
+- [**What is an Azure landing zone?**](https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/landing-zone/#platform-landing-zones-vs-application-landing-zones) - Landing zone concepts and architecture
+- [**Deploy Azure landing zones**](https://learn.microsoft.com/en-us/azure/architecture/landing-zones/landing-zone-deploy#application-landing-zone-architectures) - Application landing zone patterns
+- [**Prepare your landing zone for migration**](https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/landing-zone/ready-azure-landing-zone#routing) - Network routing and connectivity
+- [**Application landing zone accelerators**](https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/landing-zone/#application-landing-zone-accelerators) - Pre-built landing zone templates
+
+### **Application Gateway & Networking**
+- [**Reliability in Azure Application Gateway v2**](https://learn.microsoft.com/en-us/azure/reliability/reliability-application-gateway-v2#availability-zone-support) - Application Gateway configuration and reliability
+- [**Azure Application Gateway configuration**](https://learn.microsoft.com/en-us/azure/application-gateway/quick-create-portal) - Setup and configuration guidance
+
+### **Security & Best Practices**
+- [**Create a new network-secured environment**](https://learn.microsoft.com/en-us/azure/ai-foundry/agents/how-to/virtual-networks#configure-a-new-network-secured-environment) - Network security for AI Foundry
+- [**Azure AI Foundry Agent Service RBAC roles**](https://learn.microsoft.com/en-us/azure/ai-foundry/concepts/rbac-azure-ai-foundry) - Role-based access control
+- [**What's new in Azure AI Foundry Agent Service**](https://learn.microsoft.com/en-us/azure/ai-foundry/agents/whats-new#may-2025) - Latest features and updates
+
+### **Reference Architecture**
+- [**Baseline Azure AI Foundry chat reference architecture**](https://learn.microsoft.com/azure/architecture/ai-ml/architecture/azure-openai-baseline-zone) - Complete architectural guidance (referenced in this implementation)
+
+These resources provide comprehensive documentation for understanding, implementing, and troubleshooting the components used in this Azure AI Foundry chat baseline landing zone implementation.
+
 ### Deploy Jump Box (Optional)
 
 If you need a jump box for agent deployment and testing:

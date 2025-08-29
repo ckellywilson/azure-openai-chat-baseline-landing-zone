@@ -13,6 +13,7 @@ project.lock.json
 
 # Environment-specific deployment variables
 deployment-vars.env
+*.backup.*
 
 # User-specific files
 *.suo

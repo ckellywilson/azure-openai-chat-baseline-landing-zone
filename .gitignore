@@ -11,6 +11,9 @@ project.lock.json
 
 .config
 
+# Environment-specific deployment variables
+deployment-vars.env
+
 # User-specific files
 *.suo
 *.user

@@ -22,6 +22,9 @@ param logAnalyticsWorkspaceName string
 @minLength(1)
 param privateEndpointSubnetResourceId string
 
+// ---- Variables ----
+var uniqueSuffix = substring(uniqueString(resourceGroup().id, baseName), 0, 6)
+
 // ---- Existing resources ----
 
 resource storageBlobDataOwnerRole 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
@@ -37,7 +40,7 @@ resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2025-02
 // ---- New resources ----
 
 resource agentStorageAccount 'Microsoft.Storage/storageAccounts@2024-01-01' = {
-  name: 'stagent${baseName}'
+  name: 'stagent${baseName}${uniqueSuffix}'
   location: location
   sku: {
     name: 'Standard_GZRS'

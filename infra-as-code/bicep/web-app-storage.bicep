@@ -33,6 +33,9 @@ param privateEndpointsSubnetName string
 @minLength(36)
 param debugUserPrincipalId string
 
+// ---- Variables ----
+var uniqueSuffix = substring(uniqueString(resourceGroup().id, baseName), 0, 6)
+
 // ---- Existing resources ----
 
 resource virtualNetwork 'Microsoft.Network/virtualNetworks@2024-05-01' existing = {
@@ -59,7 +62,7 @@ resource storageBlobDataContributorRole 'Microsoft.Authorization/roleDefinitions
 
 @description('Deploy a storage account for the web app to use as a deployment source for its web application code. Will be exposed only via private endpoint.')
 resource appDeployStorage 'Microsoft.Storage/storageAccounts@2024-01-01' = {
-  name: 'stwebapp${baseName}'
+  name: 'stwebapp${baseName}${uniqueSuffix}'
   location: location
   sku: {
     name: 'Standard_ZRS'

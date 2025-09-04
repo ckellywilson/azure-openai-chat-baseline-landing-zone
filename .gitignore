@@ -15,6 +15,12 @@ project.lock.json
 deployment-vars.env
 *.backup.*
 
+# Environment-specific parameters files (contain real subscription IDs)
+parameters.alz.json
+**/parameters.json
+!**/parameters.template.json
+!**/parameters.alz.template.json
+
 # User-specific files
 *.suo
 *.user
@@ -37,6 +43,18 @@ msbuild.log
 msbuild.err
 msbuild.wrn
 
+# .NET publish output
+publish/
+PublishProfiles/
+*.pubxml
+*.pubxml.user
+*.publishsettings
+
+# Package files
+*.nupkg
+*.snupkg
+**/packages/
+
 # Visual Studio 2015
 .vs/
 
@@ -45,3 +63,19 @@ appgw.pfx
 appgw.crt
 request.json
 chat_wiki.zip
+
+# Additional .NET artifacts
+*.zip
+!website/chatui.zip
+project.fragment.lock.json
+artifacts/
+**/Properties/launchSettings.json
+
+# Node.js (if any)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Agent configuration files with secrets
+**/agents/*-configured.json

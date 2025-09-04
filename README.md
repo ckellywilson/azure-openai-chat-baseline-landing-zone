@@ -868,7 +868,9 @@ For this deployment guide, you'll continue using your jump box to simulate part 
 1. Upload the web application to Azure Storage, where the web app will load the code from.
 
    ```powershell
-   az storage blob upload -f chatui.zip --account-name "stwebapp${BASE_NAME}" --auth-mode login -c deploy -n chatui.zip
+   # Get the web app storage account name (it now includes a unique suffix)
+   $WEBAPP_STORAGE = $(az storage account list -g $RESOURCE_GROUP --query "[?contains(name, 'stwebapp')].name" -o tsv)
+   az storage blob upload -f chatui.zip --account-name $WEBAPP_STORAGE --auth-mode login -c deploy -n chatui.zip
    ```
 
 1. Update the app configuration to use the Azure AI Foundry project endpoint you deployed.
